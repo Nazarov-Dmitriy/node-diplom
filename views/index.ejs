@@ -1,0 +1,16 @@
+<%- include('./port/layout-start') %>
+<%- include('./port/menu') %>
+
+<div class="jumbotron jumbotron-fluid">
+    <div class="container">
+
+        <% if (!user) { %>
+        <p>Пожалуйста, <a href="/api/signin"> авторизуйтесь </a></p>
+        <% } else { %>
+        <p>Привет, <%= user.name %>. </p>
+        <% } %>
+    </div>
+</div>
+
+
+<%- include('./port/layout-end') %>

@@ -1,0 +1,274 @@
+<%- include('../port/layout-start', {title: title}) %>
+<%- include('../port/menu') %>
+
+<div class="d-flex align-items-center justify-content-between">
+    <h1><%= title %></h1>
+    <div>
+        <p class="visually-hidden" id="name">Автор <%= author %></p>
+        <p class="card-text">Создано <%= advertisement.createdAt %></p>
+    </div>
+</div>
+<div id="carouselExampleFade" class="carousel slide carousel-fade" data-bs-ride="carousel" data-bs-interval="false">
+    <div class="carousel-inner">
+        <% if(advertisement.images.length > 0) { %>
+        <% advertisement.images.map((el, idx) => {  %>
+        <div class="carousel-item <%= idx === 0 ? 'active' : ''%>">
+            <img src="/images/<%= el.split('/')[2]%>" class="d-block w-100" alt="<%= el.split('/')[2] %>"
+                style="object-fit: cover;width: 100%;  height: 600px;">
+        </div>
+        <% }) %>
+        <% }else { %>
+        <div class="carousel-item active">
+            <svg class="bd-placeholder-img card-img-top" width="100%" height="300px" xmlns="http://www.w3.org/2000/svg"
+                role="img" aria-label="Placeholder: Image cap" preserveAspectRatio="xMidYMid slice" focusable="false">
+                <title>Placeholder</title>
+                <rect width="100%" height="100%" fill="#868e96"></rect><text x="36%" y="50%" fill="#dee2e6" dy=".5em"
+                    font-size="32px">Фотографии отсутсуют</text>
+            </svg>
+        </div>
+        <% } %>
+    </div>
+    <button class="carousel-control-prev" type="button" data-bs-target="#carouselExampleFade" data-bs-slide="prev">
+        <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+        <span class="visually-hidden">Предыдущий</span>
+    </button>
+    <button class="carousel-control-next" type="button" data-bs-target="#carouselExampleFade" data-bs-slide="next">
+        <span class="carousel-control-next-icon" aria-hidden="true"></span>
+        <span class="visually-hidden">Следующий</span>
+    </button>
+</div>
+
+<div class="mb-3 item" data-advertisement="<%=advertisement._id.toString() %>"
+    data-advertisement-userid="<%=advertisement.userId %>">
+    <h5 class=" card-title">Описание</h5>
+    <p class="card-text"> <%= advertisement.description  %></p>
+    <div class="d-flex align-items-center justify-content-between mt-3">
+        <div>
+            <% if(user !==undefined && user._id.toString()===advertisement.userId ) { %>
+            <p class="card-text">Обновленно <%= advertisement.updatedAt %></p>
+        </div>
+        <div>
+            <a class="btn btn-primary" href="/api/advertisement/remove/<%= advertisement._id.toString()%>"
+                role="button">Удалить</a>
+            <a class="btn btn-primary" href="/api/advertisements/update/<%= advertisement._id.toString()%>"
+                role="button">Редактировать</a>
+            <% }else{ %>
+            <button type="button" class="btn btn-secondary" disabled>Удалить</button>
+            <button type="button" class="btn btn-secondary" disabled>Редактировать</button>
+            <% } %>
+        </div>
+    </div>
+    <% if(user !== undefined)  {  %>
+
+    <div id="send-messages">
+        <div class="form-floating mt-3 user" data-name="<%=user.name%>" data-userid="<%=user._id.toString()%>">
+            <h4>Сообщение</h4>
+            <textarea class="form-control mb-3" placeholder="Leave a comment here" id="text" style="height: 100px"
+                name="message"></textarea>
+            <div class="d-flex justify-content-end">
+                <button type="submit" class="btn btn-primary" id="send-room">Отправить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="chat">
+    <div class="chat-title d-flex ">
+        <h5 class="card-title mb-2">Чат</h5>
+    </div>
+    <div id="chatList">
+    </div>
+</div>
+
+<% } %>
+
+
+<%- include('../port/layout-end') %>
+
+<script src="/socket.io/socket.io.js"></script>
+
+<script>
+    const roomName = location.pathname.split('/').pop();
+    const socket = io.connect('/', {
+        query: `roomName=${roomName}`
+    });
+
+    const chatList = document.querySelector('#chatList');
+    const chat = document.querySelector('#chat');
+    const sendMessage = document.querySelector('#send-message');
+    const userId = document.querySelector('.user')?.dataset.userid;
+    const userName = document.querySelector('.user')?.dataset.name;
+    const userAdvertisementId = document.querySelector('.item').dataset.advertisementUserid;
+    const advertisementId = document.querySelector('.item').dataset.advertisement;
+    const inputText = document.querySelector('#text');
+    const sendRoom = document.querySelector('#send-room');
+    let chatId, classReadF, sendAddRead;
+
+
+
+    const getTmp = (msg) => {
+        if (msg.readAt === false) {
+            classRead =
+                `<div class="border border-dark rounded border-3 p-2 mb-3 bg-secondary bg-opacity-25" id=${msg.messageId||msg.message.messageId}>`
+            sendAddRead =
+                ` <button type="button" class="btn btn-primary ml-3 btn-read"  onclick=addReadMessages('${msg.messageId||msg.message.messageId}')>Прочитано</button>`
+        } else {
+            classRead =
+                `<div class="border border-dark rounded border-3 p-2 mb-3"  id=${msg.messageId||msg.message.messageId}>`
+            sendAddRead =
+                ` <button type="button" class="btn btn-secondary ml-3"  disabled="disabled">Прочитано</button>`
+        }
+        return `
+            ${classRead}
+            <div>
+                <div class="d-flex ">
+                    <p class="card-text mr-3">${msg.userName ||msg.message.userName }</p>
+                    <p class="card-text">${msg.date ||msg.message.date} </p>
+                </div>
+                <p class="card-text mb-2">${msg.text ||msg.message.text}</p>
+                </div>
+                    <div class="d-flex align-items-center justify-content-end mb-1">
+                   ${sendAddRead}
+                </div>
+            </div>`;
+    };
+
+
+    function getHistory(chatId) {
+        if (userAdvertisementId === userId) {
+            socket.emit('getHistory', {
+                userId: userId,
+                advertisementId: advertisementId,
+                chatId: chatId
+            })
+        } else {
+            socket.emit('getHistory', {
+                userId: userId,
+                userAdvertisementId: userAdvertisementId,
+                advertisementId: advertisementId,
+                chatId: chatId
+            })
+        }
+    }
+
+    getHistory(chatId)
+
+    socket.on('chatHistory', async (msg) => {
+        let noReadMsg;
+
+        function countMessagesNoReads(arr) {
+            noReadMsg = 0;
+            arr.messages?.map(elem => {
+                if (elem.author !== userName && elem.readAt === null) {
+                    noReadMsg++;
+                }
+            })
+        }
+
+        function messagesList(arr) {
+            if (arr) {
+                arr.map((el) => {
+                    let readAt;
+                    if (el.author !== userName && el.readAt === null) {
+                        readAt = false;
+                    }
+                    const div = getTmp({
+                        userName: el.author,
+                        date: el.sentAt,
+                        text: el.text,
+                        readAt: readAt,
+                        messageId: el.messageId,
+                    })
+                    chatList.insertAdjacentHTML('beforeend', div)
+                })
+            }
+        }
+
+        function messageAddChat() {
+            msg.dataChat.map((el, idx) => {
+                countMessagesNoReads(el);
+                if (!msg.chatId) {
+                    if (idx === 0) {
+                        document.querySelector('.chat-title').insertAdjacentHTML('beforeend',
+                            `<h5 class="chat-user ml-3 text-primary" id="${el._id}" >${el.users[1]} <span class="badge bg-danger">${noReadMsg}</span></h5>`
+                        )
+                        messagesList(msg.dataChat[0]?.messages)
+                        chatId = el._id;
+                    } else {
+                        document.querySelector('.chat-title').insertAdjacentHTML('beforeend',
+                            `<h5 class="chat-user ml-3" id="${el._id}" >${el.users[1]} <span class="badge bg-danger">${noReadMsg}</span></h5>`
+                        );
+                    }
+                } else {
+                    if (el._id === chatId) {
+                        document.querySelector('.chat-title').insertAdjacentHTML('beforeend',
+                            `<h5 class="chat-user ml-3 text-primary" id="${el._id}" >${el.users[1]} <span class="badge bg-danger">${noReadMsg}</span></h5>`
+                        )
+                        messagesList(msg.dataChat[idx]?.messages)
+                        chatId = el._id;
+                    } else {
+                        document.querySelector('.chat-title').insertAdjacentHTML('beforeend',
+                            `<h5 class="chat-user ml-3" id="${el._id}" >${el.users[1]} <span class="badge bg-danger">${noReadMsg}</span></h5>`
+                        );
+                    }
+                }
+            })
+        }
+
+
+        if (userAdvertisementId == userId && msg.dataChat.length === 0) {
+            document.querySelector('#send-messages').style.display = "none"
+            chatList.insertAdjacentHTML('beforeend', '<p class="no-messges">Сообщение пока что нет</p>')
+        } else if (msg.dataChat.length === 0 && userId) {
+            chatList.insertAdjacentHTML('beforeend', '<p class="no-messges">Сообщение пока что нет</p>');
+        } else {
+            messageAddChat()
+        }
+
+        Array.from(document.querySelectorAll('.chat-user')).map(el => {
+            el.addEventListener('click', (e) => {
+                Array.from(document.querySelectorAll('.chat-user')).map(el => {
+                    el.classList.remove('text-primary')
+                })
+                e.target.classList.add('text-primary')
+                chatList.innerHTML = '';
+                chatId = e.target.getAttribute(
+                    'id')
+                document.querySelector('.chat-title').textContent = '';
+                getHistory(chatId)
+
+            })
+        })
+    })
+
+
+    if (sendRoom) {
+        sendRoom.addEventListener('click', () => {
+            socket.emit('sendMessage', {
+                receiver: userAdvertisementId,
+                text: inputText.value,
+                user: userId,
+                advertisementId: advertisementId,
+                chatId: chatId
+            })
+            inputText.value = '';
+        })
+        socket.on('newMessage', (msg) => {
+            const div = getTmp(msg)
+            chatList.insertAdjacentHTML('beforeend', div)
+        });
+    }
+
+    function addReadMessages(id) {
+        let btn = document.querySelector(`[id='${id}'] .btn-primary`);
+        document.getElementById(id).classList.remove('bg-secondary', 'bg-opacity-25')
+        btn.classList.remove('btn-primary')
+        btn.classList.add('btn-secondary')
+        btn.setAttribute("disabled", "disabled")
+        document.querySelector('.text-primary .badge').textContent = Number(document.querySelector(
+            '.text-primary .badge').textContent) - 1;
+        socket.emit('readMessage', {
+            id: id
+        })
+    }
+</script>

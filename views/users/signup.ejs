@@ -1,0 +1,37 @@
+<%- include('../port/layout-start') %>
+<%- include('../port/menu' ) %>
+
+<div class="jumbotron jumbotron-fluid">
+  <form class="w-50 mx-auto p-0 ">
+    <div class="mb-3 row">
+      <label for="exampleInputEmail" class="form-label col-4">Email</label>
+      <input type="text" class="form-control col-sm" id="exampleInputEmail" name="email" required="required">
+    </div>
+    <div class=" mb-3 row">
+      <label for="exampleInputPassword" class="form-label col-4">Пароль</label>
+      <input type="password" class="form-control col" id="exampleInputPasswor" name="password" required="required">
+    </div>
+    <div class=" mb-3 row">
+      <label for="exampleInputName" class="form-label col-4">Имя</label>
+      <input type="text" class="form-control col" id="exampleInputName" name="name" required="required">
+    </div>
+    <div class=" mb-3 row">
+      <label for="exampleInputContactPhone" class="form-label col-4">Контактный телефон</label>
+      <input type="text" class="form-control col" id="exampleInputContactPhone" name="phone">
+    </div>
+    <button type="submit" class="btn btn-primary " formaction='/api/signup' formmethod="post">Зарегистрироватся</button>
+  </form>
+
+  <div class="w-50 mx-auto p-0 mt-3 ">
+    <% if (status ==='ok') { %>
+    <p>Пользователь <%= data.name %> успешно зарегистрирован !</p>
+    <% } else if (status === 'error') { %>
+    <p class="text-danger">Данный email занят</p>
+    <% } %>
+  </div>
+</div>
+
+
+
+
+<%- include('../port/layout-end') %>
